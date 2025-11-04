@@ -19,27 +19,48 @@ const deleteCardBtn = document.getElementById("deleteCardBtn");
 
 let currentCard = null;
 
+const DATA_VERSION = "1.0.0";
 
-const defaultData = [
-  { title: "Vagas", cards: [] },
-  { title: "Candidatei", cards: [] },
-  { title: "Reunião com RH", cards: [] },
-  { title: "Reunião Técnica", cards: [] },
-  { title: "Teste Prático", cards: [] },
-  { title: "Concluído", cards: [] }
-];
+const defaultData = {
+  version: DATA_VERSION,
+  columns: [
+    { title: "Vagas", cards: [] },
+    { title: "Candidatei", cards: [] },
+    { title: "Reunião com RH", cards: [] },
+    { title: "Reunião Técnica", cards: [] },
+    { title: "Teste Prático", cards: [] },
+    { title: "Concluído", cards: [] }
+  ]
+};
 
-function saveData() { localStorage.setItem("MeCandidateiData", JSON.stringify(columnsData)); }
+function saveData() {
+  localStorage.setItem("MeCandidateiData", JSON.stringify(columnsData));
+}
+
 function loadData() {
   const data = localStorage.getItem("MeCandidateiData");
-  return data ? JSON.parse(data) : defaultData;
+  if (!data) return structuredClone(defaultData);
+  try {
+    const parsed = JSON.parse(data);
+    // Se o arquivo for de uma versão antiga, converte para o novo formato
+    if (!parsed.version) {
+      return {
+        version: DATA_VERSION,
+        columns: Array.isArray(parsed) ? parsed : defaultData.columns
+      };
+    }
+    return parsed;
+  } catch (e) {
+    console.error("Erro ao carregar dados:", e);
+    return structuredClone(defaultData);
+  }
 }
 
 let columnsData = loadData();
 
 function renderBoard() {
   board.innerHTML = "";
-  columnsData.forEach((col, colIndex) => {
+  columnsData.columns.forEach((col, colIndex) => {
     const columnEl = document.createElement("div");
     columnEl.className = "column";
     columnEl.innerHTML = `<h2>${col.title}</h2>`;
@@ -47,8 +68,9 @@ function renderBoard() {
     col.cards.forEach((card, cardIndex) => {
       const cardEl = document.createElement("div");
       cardEl.className = "card";
-      cardEl.innerHTML = `<div class="card-title">${card.title}</div>
-                          <div class="card-desc">${card.description || ""}</div>`;
+      cardEl.innerHTML = `
+        <div class="card-title">${card.title}</div>
+        <div class="card-desc">${card.description || ""}</div>`;
       cardEl.draggable = true;
 
       cardEl.addEventListener("dragstart", e => {
@@ -66,12 +88,13 @@ function renderBoard() {
     columnEl.addEventListener("drop", e => {
       const fromCol = e.dataTransfer.getData("colIndex");
       const fromCard = e.dataTransfer.getData("cardIndex");
-      const movedCard = columnsData[fromCol].cards.splice(fromCard, 1)[0];
+      const movedCard = columnsData.columns[fromCol].cards.splice(fromCard, 1)[0];
       const date = new Date().toLocaleString("pt-BR");
       movedCard.history = movedCard.history || [];
       movedCard.history.push(`${date} - Movido para "${col.title}"`);
       col.cards.push(movedCard);
-      saveData(); renderBoard();
+      saveData();
+      renderBoard();
     });
 
     board.appendChild(columnEl);
@@ -82,19 +105,20 @@ function renderBoard() {
 addGlobal.onclick = () => {
   const vaga = prompt("Digite o nome da vaga:");
   if (!vaga) return;
-  columnsData[0].cards.push({
+  columnsData.columns[0].cards.push({
     title: vaga,
     description: "",
     comments: [],
     history: [`${new Date().toLocaleString("pt-BR")} - Criado`]
   });
-  saveData(); renderBoard();
+  saveData();
+  renderBoard();
 };
 
 // Modal Card
 function openCardModal(colIndex, cardIndex) {
   currentCard = { colIndex, cardIndex };
-  const card = columnsData[colIndex].cards[cardIndex];
+  const card = columnsData.columns[colIndex].cards[cardIndex];
   modalTitle.value = card.title;
   cardDescription.value = card.description || "";
   renderComments(card.comments);
@@ -128,9 +152,10 @@ function renderHistory(history) {
 }
 
 function deleteComment(index) {
-  const card = columnsData[currentCard.colIndex].cards[currentCard.cardIndex];
+  const card = columnsData.columns[currentCard.colIndex].cards[currentCard.cardIndex];
   card.comments.splice(index, 1);
-  saveData(); renderComments(card.comments);
+  saveData();
+  renderComments(card.comments);
 }
 
 // Fechar modal
@@ -139,45 +164,49 @@ window.onclick = e => {
   if (e.target === modal) closeCardModal();
   if (e.target === supportModal) supportModal.style.display = "none";
 };
-function closeCardModal() { saveCardDetails(); modal.style.display = "none"; }
+
+function closeCardModal() {
+  saveCardDetails();
+  modal.style.display = "none";
+}
 
 // Salvar card
 function saveCardDetails() {
   if (!currentCard) return;
-  const card = columnsData[currentCard.colIndex].cards[currentCard.cardIndex];
+  const card = columnsData.columns[currentCard.colIndex].cards[currentCard.cardIndex];
   card.title = modalTitle.value;
   card.description = cardDescription.value;
-  saveData(); renderBoard();
+  saveData();
+  renderBoard();
 }
 
 // Comentário
 addCommentBtn.onclick = () => {
   const text = commentInput.value.trim();
   if (!text) return;
-  const card = columnsData[currentCard.colIndex].cards[currentCard.cardIndex];
+  const card = columnsData.columns[currentCard.colIndex].cards[currentCard.cardIndex];
   const date = new Date().toLocaleString("pt-BR");
   card.comments.push({ text, date });
-  saveData(); renderComments(card.comments); commentInput.value = "";
+  saveData();
+  renderComments(card.comments);
+  commentInput.value = "";
 };
 
-// Excluir card com segurança
+// Excluir card
 deleteCardBtn.onclick = () => {
   if (!currentCard) return;
-  const confirmDelete = confirm("Tem certeza que deseja excluir este card?");
-  if (!confirmDelete) return;
+  if (!confirm("Tem certeza que deseja excluir este card?")) return;
   const { colIndex, cardIndex } = currentCard;
   modal.style.display = "none";
-  columnsData[colIndex].cards.splice(cardIndex, 1);
+  columnsData.columns[colIndex].cards.splice(cardIndex, 1);
   currentCard = null;
-
   saveData();
   renderBoard();
 };
 
-
 // Modal de apoio
-supportBtn.onclick = () => supportModal.style.display = "flex";
-closeSupport.onclick = () => supportModal.style.display = "none";
+supportBtn.onclick = () => (supportModal.style.display = "flex");
+closeSupport.onclick = () => (supportModal.style.display = "none");
 
 // EXPORTAR DADOS
 exportBtn.onclick = () => {
@@ -186,14 +215,14 @@ exportBtn.onclick = () => {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = "MeCandidatei_backup.json";
+  a.download = `MeCandidatei_backup_v${DATA_VERSION}.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 };
 
-// IMPORTAR DADOS
+// IMPORTAR DADOS (corrigido e aprimorado)
 importBtn.onclick = () => importFile.click();
 
 importFile.onchange = e => {
@@ -203,13 +232,22 @@ importFile.onchange = e => {
   reader.onload = ev => {
     try {
       const importedData = JSON.parse(ev.target.result);
-      if (!Array.isArray(importedData)) throw new Error("Formato inválido.");
-      columnsData = importedData;
-      saveData();
+      if (!importedData.version || !importedData.columns)
+        throw new Error("Arquivo incompatível ou formato inválido.");
+
+      if (importedData.version !== DATA_VERSION) {
+        if (!confirm(`O backup é da versão ${importedData.version}, mas o app usa ${DATA_VERSION}. Deseja tentar importar mesmo assim?`))
+          return;
+      }
+
+      localStorage.setItem("MeCandidateiData", JSON.stringify(importedData));
+      columnsData = loadData();
       renderBoard();
-      alert("Dados importados com sucesso!");
+      alert("✅ Dados importados com sucesso!");
     } catch (err) {
-      alert("Erro ao importar dados: " + err.message);
+      alert("⚠️ Erro ao importar dados: " + err.message);
+    } finally {
+      importFile.value = "";
     }
   };
   reader.readAsText(file);
