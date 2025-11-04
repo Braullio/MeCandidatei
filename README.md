@@ -1,6 +1,6 @@
 # 💼 MeCandidatei
 
-**MeCandidatei** é uma aplicação web simples e intuitiva para ajudar você a **organizar o processo de candidaturas de emprego** — como um quadro Kanban (estilo Trello).  
+**MeCandidatei** é uma aplicação web simples e intuitiva para ajudar você a **organizar o processo de candidaturas de emprego** — como um quadro Kanban.  
 Você pode registrar as vagas que está acompanhando, mover cards entre etapas, adicionar comentários, acompanhar histórico de movimentações e até exportar/importar seus dados.
 
 ---
