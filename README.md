@@ -41,3 +41,6 @@ mecandidatei/
 
 3. **Pronto!**
    - Tudo funciona 100% no navegador, sem necessidade de servidor ou backend.
+
+### Site
+https://www.mecandidatei.app.br/
